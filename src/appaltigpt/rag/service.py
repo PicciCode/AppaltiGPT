@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import Dict, Any
 from .ports.generator_port import RagGeneratorPort
 
 

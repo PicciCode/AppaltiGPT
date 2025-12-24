@@ -19,7 +19,7 @@ class ChunkingService:
         self.ai_client = ai_client
         self.converter = converter
         self.vector_store = vector_store
-        self.batch_size = 15 
+        self.batch_size = 5
 
     def _to_qdrant_chunks(self, doc: RagDocument, filename: str) -> List[QdrantChunk]:
         qdrant_chunks = []
@@ -62,22 +62,22 @@ class ChunkingService:
             qdrant_chunks.append(q_chunk)
         return qdrant_chunks
 
-    async def _process_single_file(self, file: Path, pages: List[str]) -> RagDocument:
-        print(f"Analyzing {file.name} ({len(pages)} pages)...")
+    async def _process_single_file(self, file: Path, segments: List[str]) -> RagDocument:
+        print(f"Analyzing {file.name} ({len(segments)} segments)...")
         
         analysis_tasks = []
         
-        for i in range(0, len(pages), self.batch_size):
-            batch = pages[i : i + self.batch_size]
-            start_page = i + 1
-            end_page = i + len(batch)
+        for i in range(0, len(segments), self.batch_size):
+            batch = segments[i : i + self.batch_size]
+            start_idx = i + 1
+            end_idx = i + len(batch)
             
             batch_text = "\n\n".join(batch)
             
             batch_prompt = (
                 f"CONTEXT INFO:\n"
-                f"This content segment represents pages {start_page} to {end_page} of the original document.\n"
-                f"When assigning page numbers to chunks, strict adherence to this range is required.\n"
+                f"This content segment represents sections {start_idx} to {end_idx} of the original document.\n"
+                f"Note: These indices refer to logical sections/headers, not physical pages.\n"
                 f"--------------------------------------------------\n\n"
                 f"{PROMPT_TEMPLATE}"
             )
@@ -99,7 +99,7 @@ class ChunkingService:
             document_title=doc_title,
             language=doc_lang,
             chunks=merged_chunks,
-            markdown_document="\n\n".join(pages)
+            markdown_document="\n\n".join(segments)
         )
         
         if self.vector_store:
@@ -111,7 +111,16 @@ class ChunkingService:
         return doc
 
     async def process_documents(self, folder: Path) -> Dict[str, RagDocument]:
-
+        """
+        Processes all PDF documents in the given folder:
+        1. Lists files
+        2. Converts to Markdown Segments (Mistral - split by headers)
+        3. Batches segments and Analyzes/Chunks them (OpenAI)
+        4. Merges results
+        5. (Optional) Indexes chunks into Vector Store
+        
+        Returns a dictionary mapping filename to RagDocument
+        """
 
         files = self.file_repo.list_files(folder, '.pdf')
         if not files:
@@ -121,12 +130,12 @@ class ChunkingService:
 
             print("Converting documents...")
             conversion_tasks = [self.converter.convert(f) for f in files]
-            documents_pages = await asyncio.gather(*conversion_tasks)
+            documents_segments = await asyncio.gather(*conversion_tasks)
             
             print("Processing documents in parallel...")
             process_tasks = [
-                self._process_single_file(file, pages)
-                for file, pages in zip(files, documents_pages, strict=True)
+                self._process_single_file(file, segments)
+                for file, segments in zip(files, documents_segments, strict=True)
             ]
             results = await asyncio.gather(*process_tasks)
             
