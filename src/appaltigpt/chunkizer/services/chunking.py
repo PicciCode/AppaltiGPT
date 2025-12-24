@@ -62,17 +62,56 @@ class ChunkingService:
             qdrant_chunks.append(q_chunk)
         return qdrant_chunks
 
-    async def process_documents(self, folder: Path) -> Dict[str, RagDocument]:
-        """
-        Processes all PDF documents in the given folder:
-        1. Lists files
-        2. Converts to Markdown Pages (Mistral)
-        3. Batches pages and Analyzes/Chunks them (OpenAI)
-        4. Merges results
-        5. (Optional) Indexes chunks into Vector Store
+    async def _process_single_file(self, file: Path, pages: List[str]) -> RagDocument:
+        print(f"Analyzing {file.name} ({len(pages)} pages)...")
         
-        Returns a dictionary mapping filename to RagDocument
-        """
+        analysis_tasks = []
+        
+        for i in range(0, len(pages), self.batch_size):
+            batch = pages[i : i + self.batch_size]
+            start_page = i + 1
+            end_page = i + len(batch)
+            
+            batch_text = "\n\n".join(batch)
+            
+            batch_prompt = (
+                f"CONTEXT INFO:\n"
+                f"This content segment represents pages {start_page} to {end_page} of the original document.\n"
+                f"When assigning page numbers to chunks, strict adherence to this range is required.\n"
+                f"--------------------------------------------------\n\n"
+                f"{PROMPT_TEMPLATE}"
+            )
+            
+            analysis_tasks.append(
+                self.ai_client.analyze_text(batch_text, batch_prompt)
+            )
+        
+        batch_analyses: List[RagAnalysis] = await asyncio.gather(*analysis_tasks)
+        
+        merged_chunks = []
+        doc_title = batch_analyses[0].document_title if batch_analyses else "Unknown"
+        doc_lang = batch_analyses[0].language if batch_analyses else "it"
+        
+        for analysis in batch_analyses:
+            merged_chunks.extend(analysis.chunks)
+        
+        doc = RagDocument(
+            document_title=doc_title,
+            language=doc_lang,
+            chunks=merged_chunks,
+            markdown_document="\n\n".join(pages)
+        )
+        
+        if self.vector_store:
+            print(f"Indexing {file.name} to Vector Store...")
+            q_chunks = self._to_qdrant_chunks(doc, file.name)
+            print(f"Number of chunks: {len(q_chunks)}")
+            await self.vector_store.upsert(q_chunks)
+            
+        return doc
+
+    async def process_documents(self, folder: Path) -> Dict[str, RagDocument]:
+
 
         files = self.file_repo.list_files(folder, '.pdf')
         if not files:
@@ -84,55 +123,12 @@ class ChunkingService:
             conversion_tasks = [self.converter.convert(f) for f in files]
             documents_pages = await asyncio.gather(*conversion_tasks)
             
-            results = []
-            
-            for file, pages in zip(files, documents_pages,strict=True):
-                print(f"Analyzing {file.name} ({len(pages)} pages)...")
-                
-                analysis_tasks = []
-                
-                for i in range(0, len(pages), self.batch_size):
-                    batch = pages[i : i + self.batch_size]
-                    start_page = i + 1
-                    end_page = i + len(batch)
-                    
-                    batch_text = "\n\n".join(batch)
-                    
-                    batch_prompt = (
-                        f"CONTEXT INFO:\n"
-                        f"This content segment represents pages {start_page} to {end_page} of the original document.\n"
-                        f"When assigning page numbers to chunks, strict adherence to this range is required.\n"
-                        f"--------------------------------------------------\n\n"
-                        f"{PROMPT_TEMPLATE}"
-                    )
-                    
-                    analysis_tasks.append(
-                        self.ai_client.analyze_text(batch_text, batch_prompt)
-                    )
-                
-                batch_analyses: List[RagAnalysis] = await asyncio.gather(*analysis_tasks)
-                
-                merged_chunks = []
-                doc_title = batch_analyses[0].document_title if batch_analyses else "Unknown"
-                doc_lang = batch_analyses[0].language if batch_analyses else "it"
-                
-                for analysis in batch_analyses:
-                    merged_chunks.extend(analysis.chunks)
-                
-                doc = RagDocument(
-                    document_title=doc_title,
-                    language=doc_lang,
-                    chunks=merged_chunks,
-                    markdown_document="\n\n".join(pages)
-                )
-                
-                if self.vector_store:
-                    print(f"Indexing {file.name} to Vector Store...")
-                    q_chunks = self._to_qdrant_chunks(doc, file.name)
-                    print(f"Number of chunks: {len(q_chunks)}")
-                    await self.vector_store.upsert(q_chunks)
-                    
-                results.append(doc)
+            print("Processing documents in parallel...")
+            process_tasks = [
+                self._process_single_file(file, pages)
+                for file, pages in zip(files, documents_pages, strict=True)
+            ]
+            results = await asyncio.gather(*process_tasks)
             
         else:
 
@@ -152,5 +148,5 @@ class ChunkingService:
         
         return {
             f.name: result 
-            for f, result in zip(files, results,strict=True)
+            for f, result in zip(files, results, strict=True)
         }
