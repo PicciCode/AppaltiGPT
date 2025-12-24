@@ -19,7 +19,7 @@ class ChunkingService:
         self.ai_client = ai_client
         self.converter = converter
         self.vector_store = vector_store
-        self.batch_size = 5
+        self.batch_size = 5 
 
     def _to_qdrant_chunks(self, doc: RagDocument, filename: str) -> List[QdrantChunk]:
         qdrant_chunks = []
@@ -76,7 +76,7 @@ class ChunkingService:
             
             batch_prompt = (
                 f"CONTEXT INFO:\n"
-                f"This content segment represents sections {start_idx} to {end_idx} of the original document.\n"
+                f"This content segment represents logical sections {start_idx} to {end_idx} of the original document.\n"
                 f"Note: These indices refer to logical sections/headers, not physical pages.\n"
                 f"--------------------------------------------------\n\n"
                 f"{PROMPT_TEMPLATE}"

@@ -28,29 +28,10 @@ class MistralDocumentConverter(DocumentConverterPort):
                 include_image_base64=False 
             )
             
-            # Uniamo tutte le pagine
             full_text = "\n\n".join([page.markdown for page in ocr_response.pages])
             
-            # Dividiamo per Headers (H1, H2, H3)
-            # Regex: inizio riga, da 1 a 3 #, spazio, resto della riga
-            segments = re.split(r'(?m)^(#{1,3}\s+.*$)', full_text)
+            segments = re.split(r'(?=^#{1,2}\s)', full_text, flags=re.MULTILINE)
             
-            structured_segments = []
-            
-            # Gestiamo eventuale testo prima del primo header
-            if segments and segments[0].strip():
-                 structured_segments.append(segments[0])
-            
-            # Iteriamo a coppie (Header, Content)
-            for i in range(1, len(segments), 2):
-                header = segments[i]
-                content = segments[i+1] if i+1 < len(segments) else ""
-                structured_segments.append(f"{header}\n{content}")
-            
-            # Fallback se non ci sono header o qualcosa è andato storto
-            if not structured_segments:
-                return [full_text]
-                
-            return structured_segments
+            return [s.strip() for s in segments if s.strip()]
 
         return await asyncio.to_thread(_convert)
