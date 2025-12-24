@@ -51,7 +51,7 @@ if prompt := st.chat_input("Fai una domanda sugli appalti..."):
         retriever = get_retriever_service()
         # Settings e Client sono già caricati sopra
         
-        generator = OpenAIRagGenerator(openai_client_bs, model="gpt-4o")
+        generator = OpenAIRagGenerator(openai_client_bs, model="gpt-5.2")
         rag_service = RagService(retriever, generator)
         
         async def run_rag():

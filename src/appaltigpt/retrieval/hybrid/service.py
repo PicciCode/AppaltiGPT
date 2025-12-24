@@ -18,7 +18,7 @@ class HybridRetrieverService:
         self.retrievers = retrievers
         self.rrf_k = rrf_k
 
-    async def retrieve(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def retrieve(self, query: str, limit: int = 15) -> List[Dict[str, Any]]:
 
         tasks = []
         for retriever in self.retrievers:
@@ -43,9 +43,7 @@ class HybridRetrieverService:
         results_lists: List[List[Dict[str, Any]]], 
         limit: int
     ) -> List[Dict[str, Any]]:
-        """
-        Combina N liste di risultati usando RRF.
-        """
+        
         scores: Dict[str, float] = {}
         content_map: Dict[str, Dict[str, Any]] = {}
 

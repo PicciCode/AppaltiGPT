@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from ..ports.generator_port import RagGeneratorPort
 
 class OpenAIRagGenerator(RagGeneratorPort):
-    def __init__(self, client: openai.AsyncOpenAI, model: str = "gpt-4o"):
+    def __init__(self, client: openai.AsyncOpenAI, model: str = "gpt-5.2"):
         self.client = client
         self.model = model
         

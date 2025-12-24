@@ -2,7 +2,7 @@ from openai import AsyncOpenAI
 from ..ports.generator_port import HypotheticalDocumentGeneratorPort
 
 class OpenAIHypotheticalGenerator(HypotheticalDocumentGeneratorPort):
-    def __init__(self,client: AsyncOpenAI | None = None, model: str = "gpt-4o"):
+    def __init__(self,client: AsyncOpenAI | None = None, model: str = "gpt-5.2"):
         self.client = client if client else AsyncOpenAI()
         self.model = model
         self.prompt_template = """Scrivi un passaggio di testo che risponda alla seguente domanda.

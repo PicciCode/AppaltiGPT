@@ -14,7 +14,7 @@ class RagService:
         Restituisce la risposta e le fonti.
         """
 
-        docs = await self.retriever.retrieve(query, limit=5)
+        docs = await self.retriever.retrieve(query, limit=15)
         
 
         answer_text = await self.generator.generate_response(query, docs)

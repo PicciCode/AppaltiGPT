@@ -4,7 +4,7 @@ from ..ports.ai_client_port import AIClientPort
 from ..schema import RagDocument, RagAnalysis
 
 class OpenAIClient(AIClientPort):
-    def __init__(self, client: openai.AsyncOpenAI, model: str = "gpt-4o"):
+    def __init__(self, client: openai.AsyncOpenAI, model: str = "gpt-5.2"):
         self.client = client
         self.model = model
 

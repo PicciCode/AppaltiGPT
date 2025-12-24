@@ -121,7 +121,7 @@ def get_retriever_service() -> HybridRetrieverService:
     
     hyde_generator = OpenAIHypotheticalGenerator(
         client=openai_client,
-        model="gpt-4o"
+        model="gpt-5.1"
     )
     
     # 3. Strategie di Retrieval Singole
