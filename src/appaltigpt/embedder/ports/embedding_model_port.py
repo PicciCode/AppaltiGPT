@@ -1,0 +1,6 @@
+from typing import List, Protocol
+
+class EmbeddingModelPort(Protocol):
+    async def encode_queries(self, texts: List[str]) -> List[List[float]]: ...
+    async def encode_documents(self, texts: List[str]) -> List[List[float]]: ...
+

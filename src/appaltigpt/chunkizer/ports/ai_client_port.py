@@ -1,0 +1,9 @@
+from typing import Protocol
+from pathlib import Path
+from ..schema import RagDocument, RagAnalysis
+
+class AIClientPort(Protocol):
+    async def upload_file(self, file_path: Path) -> str: ...
+    async def analyze_document(self, file_id: str, prompt: str) -> RagDocument: ...
+    async def analyze_text(self, text: str, prompt: str) -> RagAnalysis: ...
+
